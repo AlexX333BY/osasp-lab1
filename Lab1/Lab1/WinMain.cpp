@@ -3,6 +3,11 @@
 #define WND_CLASS_NAME "LaboratoryWork1Class"
 #define WM_LOAD_SPRITE WM_USER
 #define VK_L 0x4c
+#define VK_W 0x57
+#define VK_A 0x41
+#define VK_S 0x53
+#define VK_D 0x44
+#define SPRITE_STEP 8
 
 bool PostLoadSpriteMessage(HWND hWnd)
 {
@@ -31,13 +36,13 @@ int FillDeviceContextWithColor(HDC hdc, HBRUSH hBrush)
 	return FillRect(hdc, &rect, hBrush);
 }
 
-bool PutSpriteOnWindow(HDC wndDC, HDC spriteDC)
+bool PutSpriteOnWindow(HDC wndDC, HDC spriteDC, COORD coordinates)
 {
 	SIZE bitmapSize = GetDeviceContextDimensions(spriteDC);
-	return BitBlt(wndDC, 0, 0, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY);
+	return BitBlt(wndDC, coordinates.X, coordinates.Y, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY);
 }
 
-bool LoadSprite(HWND hWnd, HDC &spriteDC)
+bool LoadSprite(HWND hWnd, HDC &spriteDC, COORD &spritePosition)
 {
 	char fileName[MAX_PATH] = { NULL };
 
@@ -70,24 +75,96 @@ bool LoadSprite(HWND hWnd, HDC &spriteDC)
 		SelectObject(spriteDC, sprite);
 
 		FillDeviceContextWithColor(wndDC, (HBRUSH)(COLOR_WINDOW + 1));
-		return PutSpriteOnWindow(wndDC, spriteDC);
+		spritePosition.X = 0;
+		spritePosition.Y = 0;
+		return PutSpriteOnWindow(wndDC, spriteDC, spritePosition);
 	}
 	return false;
+}
+
+bool CanMoveSprite(int spriteDimension, int leftBound, int rightBound, int curCoordinate, int step)
+{
+	return (((curCoordinate + step) >= leftBound) && ((curCoordinate + step + spriteDimension) <= rightBound));
+}
+
+bool MoveSprite(HDC wndDC, HDC spriteDC, COORD &spritePosition, COORD spriteSteps)
+{
+	FillDeviceContextWithColor(wndDC, (HBRUSH)(COLOR_WINDOW + 1));
+	SIZE windowSize = GetDeviceContextDimensions(wndDC), spriteSize = GetDeviceContextDimensions(spriteDC);
+	if (CanMoveSprite(spriteSize.cx, 0, windowSize.cx, spritePosition.X, spriteSteps.X))
+	{
+		spritePosition.X += spriteSteps.X;
+	}
+	if (CanMoveSprite(spriteSize.cy, 0, windowSize.cy, spritePosition.Y, spriteSteps.Y))
+	{
+		spritePosition.Y += spriteSteps.Y;
+	}
+	return PutSpriteOnWindow(wndDC, spriteDC, spritePosition);
+}
+
+bool MoveSpriteUp(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+{
+	COORD steps;
+	steps.X = 0;
+	steps.Y = -SPRITE_STEP;
+	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+}
+
+bool MoveSpriteLeft(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+{
+	COORD steps;
+	steps.X = -SPRITE_STEP;
+	steps.Y = 0;
+	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+}
+
+bool MoveSpriteDown(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+{
+	COORD steps;
+	steps.X = 0;
+	steps.Y = SPRITE_STEP;
+	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+}
+
+bool MoveSpriteRight(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+{
+	COORD steps;
+	steps.X = SPRITE_STEP;
+	steps.Y = 0;
+	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	static HDC spriteDC = NULL;
+	static COORD spritePosition = { 0, 0 };
 
 	switch (message)
 	{
 	case WM_LOAD_SPRITE:
-		LoadSprite(hWnd, spriteDC);
+		LoadSprite(hWnd, spriteDC, spritePosition);
 		break;
 	case WM_KEYDOWN:
-		if (wParam == VK_L)
+		switch (wParam)
 		{
+		case VK_L:
 			PostLoadSpriteMessage(hWnd);
+			break;
+		case VK_UP:
+		case VK_W:
+			MoveSpriteUp(GetDC(hWnd), spriteDC, spritePosition);
+			break;
+		case VK_LEFT:
+		case VK_A:
+			MoveSpriteLeft(GetDC(hWnd), spriteDC, spritePosition);
+			break;
+		case VK_DOWN:
+		case VK_S:
+			MoveSpriteDown(GetDC(hWnd), spriteDC, spritePosition);
+			break;
+		case VK_RIGHT:
+		case VK_D:
+			MoveSpriteRight(GetDC(hWnd), spriteDC, spritePosition);
 			break;
 		}
 		if (wParam != VK_ESCAPE)
