@@ -9,12 +9,37 @@ bool PostLoadSpriteMessage(HWND hWnd)
 	return PostMessage(hWnd, WM_LOAD_SPRITE, NULL, NULL);
 }
 
+void LoadSprite(HWND hWnd)
+{
+	char fileName[MAX_PATH] = { NULL };
+
+	OPENFILENAME openFileName;
+	openFileName.lStructSize = sizeof(OPENFILENAME);
+	openFileName.hwndOwner = hWnd;
+	openFileName.hInstance = NULL;
+	openFileName.lpstrFilter = "Bitmap images\0*.bmp\0\0";
+	openFileName.lpstrCustomFilter = NULL;
+	openFileName.nFilterIndex = 1;
+	openFileName.lpstrFile = fileName;
+	openFileName.nMaxFile = sizeof(fileName);
+	openFileName.lpstrFileTitle = NULL;
+	openFileName.lpstrInitialDir = NULL;
+	openFileName.lpstrTitle = "Select sprite image";
+	openFileName.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+	openFileName.lpstrDefExt = ".bmp";
+
+	if (GetOpenFileName(&openFileName))
+	{
+		// to be implemented
+	}
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
 	case WM_LOAD_SPRITE:
-		// to be implemented
+		LoadSprite(hWnd);
 		break;
 	case WM_KEYDOWN:
 		if (wParam == VK_L)
