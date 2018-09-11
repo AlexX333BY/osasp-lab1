@@ -1,12 +1,27 @@
 #include <windows.h>
 
 #define WND_CLASS_NAME "LaboratoryWork1Class"
+#define WM_LOAD_SPRITE WM_USER
+#define VK_L 0x4c
+
+bool PostLoadSpriteMessage(HWND hWnd)
+{
+	return PostMessage(hWnd, WM_LOAD_SPRITE, NULL, NULL);
+}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
+	case WM_LOAD_SPRITE:
+		// to be implemented
+		break;
 	case WM_KEYDOWN:
+		if (wParam == VK_L)
+		{
+			PostLoadSpriteMessage(hWnd);
+			break;
+		}
 		if (wParam != VK_ESCAPE)
 		{
 			break;
@@ -33,7 +48,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	wndClassEx.cbWndExtra = 0;
 	wndClassEx.hInstance = hInstance;
 	wndClassEx.hIcon = NULL;
-	wndClassEx.hCursor = NULL;
+	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wndClassEx.lpszMenuName = NULL;
 	wndClassEx.lpszClassName = WND_CLASS_NAME;
@@ -45,6 +60,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	UpdateWindow(hWnd);
 
 	MSG msg;
+	PostLoadSpriteMessage(hWnd);
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
 		TranslateMessage(&msg);
