@@ -89,6 +89,10 @@ bool CanMoveSprite(int spriteDimension, int leftBound, int rightBound, int curCo
 
 bool MoveSprite(HDC wndDC, HDC spriteDC, COORD &spritePosition, COORD spriteSteps)
 {
+	if (spriteDC == NULL)
+	{
+		return false;
+	}
 	FillDeviceContextWithColor(wndDC, (HBRUSH)(COLOR_WINDOW + 1));
 	SIZE windowSize = GetDeviceContextDimensions(wndDC), spriteSize = GetDeviceContextDimensions(spriteDC);
 	if (CanMoveSprite(spriteSize.cx, 0, windowSize.cx, spritePosition.X, spriteSteps.X))
@@ -175,6 +179,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if (MessageBox(hWnd, "Are you sure you want to exit?", "Exit question", MB_YESNO | MB_ICONQUESTION) == IDYES)
 		{
 			PostQuitMessage(0);
+		}
+		break;
+	case WM_MOUSEWHEEL:
+		if (GET_KEYSTATE_WPARAM(wParam) == MK_SHIFT)
+		{
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			{
+				MoveSpriteLeft(GetDC(hWnd), spriteDC, spritePosition);
+			}
+			else
+			{
+				MoveSpriteRight(GetDC(hWnd), spriteDC, spritePosition);
+			}
+		}
+		else
+		{
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			{
+				MoveSpriteUp(GetDC(hWnd), spriteDC, spritePosition);
+			}
+			else
+			{
+				MoveSpriteDown(GetDC(hWnd), spriteDC, spritePosition);
+			}
 		}
 		break;
 	default:
