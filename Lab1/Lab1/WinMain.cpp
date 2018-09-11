@@ -9,7 +9,7 @@ bool PostLoadSpriteMessage(HWND hWnd)
 	return PostMessage(hWnd, WM_LOAD_SPRITE, NULL, NULL);
 }
 
-void LoadSprite(HWND hWnd)
+bool LoadSprite(HWND hWnd)
 {
 	char fileName[MAX_PATH] = { NULL };
 
@@ -30,8 +30,14 @@ void LoadSprite(HWND hWnd)
 
 	if (GetOpenFileName(&openFileName))
 	{
-		// to be implemented
+		HANDLE sprite = LoadImage(NULL, fileName, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_LOADTRANSPARENT);
+		if (sprite == NULL)
+		{
+			MessageBox(hWnd, "Error while loading image", "Error", MB_OK | MB_ICONERROR);
+			return false;
+		}
 	}
+	return true;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
