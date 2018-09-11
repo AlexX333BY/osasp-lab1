@@ -9,7 +9,35 @@ bool PostLoadSpriteMessage(HWND hWnd)
 	return PostMessage(hWnd, WM_LOAD_SPRITE, NULL, NULL);
 }
 
-bool LoadSprite(HWND hWnd)
+SIZE GetDeviceContextDimensions(HDC hdc)
+{
+	BITMAP structBitmapHeader;
+	memset(&structBitmapHeader, 0, sizeof(BITMAP));
+	GetObject(GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &structBitmapHeader);
+	SIZE size;
+	size.cx = structBitmapHeader.bmWidth;
+	size.cy = structBitmapHeader.bmHeight;
+	return size;
+}
+
+int FillDeviceContextWithColor(HDC hdc, HBRUSH hBrush)
+{
+	SIZE size = GetDeviceContextDimensions(hdc);
+	RECT rect;
+	rect.left = 0;
+	rect.top = 0;
+	rect.right = size.cx;
+	rect.bottom = size.cy;
+	return FillRect(hdc, &rect, hBrush);
+}
+
+bool PutSpriteOnWindow(HDC wndDC, HDC spriteDC)
+{
+	SIZE bitmapSize = GetDeviceContextDimensions(spriteDC);
+	return BitBlt(wndDC, 0, 0, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY);
+}
+
+bool LoadSprite(HWND hWnd, HDC &spriteDC)
 {
 	char fileName[MAX_PATH] = { NULL };
 
@@ -36,16 +64,25 @@ bool LoadSprite(HWND hWnd)
 			MessageBox(hWnd, "Error while loading image", "Error", MB_OK | MB_ICONERROR);
 			return false;
 		}
+
+		HDC wndDC = GetDC(hWnd);
+		spriteDC = CreateCompatibleDC(wndDC);
+		SelectObject(spriteDC, sprite);
+
+		FillDeviceContextWithColor(wndDC, (HBRUSH)(COLOR_WINDOW + 1));
+		return PutSpriteOnWindow(wndDC, spriteDC);
 	}
-	return true;
+	return false;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	static HDC spriteDC = NULL;
+
 	switch (message)
 	{
 	case WM_LOAD_SPRITE:
-		LoadSprite(hWnd);
+		LoadSprite(hWnd, spriteDC);
 		break;
 	case WM_KEYDOWN:
 		if (wParam == VK_L)
