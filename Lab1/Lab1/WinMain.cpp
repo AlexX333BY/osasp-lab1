@@ -14,35 +14,50 @@ bool PostLoadSpriteMessage(HWND hWnd)
 	return PostMessage(hWnd, WM_LOAD_SPRITE, NULL, NULL);
 }
 
-SIZE GetDeviceContextDimensions(HDC hdc)
+SIZE GetClientWindowSize(HWND hWnd)
 {
-	BITMAP structBitmapHeader;
-	memset(&structBitmapHeader, 0, sizeof(BITMAP));
-	GetObject(GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &structBitmapHeader);
-	SIZE size;
-	size.cx = structBitmapHeader.bmWidth;
-	size.cy = structBitmapHeader.bmHeight;
-	return size;
-}
-
-int FillDeviceContextWithColor(HDC hdc, HBRUSH hBrush)
-{
-	SIZE size = GetDeviceContextDimensions(hdc);
 	RECT rect;
-	rect.left = 0;
-	rect.top = 0;
-	rect.right = size.cx;
-	rect.bottom = size.cy;
-	return FillRect(hdc, &rect, hBrush);
+	GetClientRect(hWnd, &rect);
+	SIZE result;
+	result.cx = rect.right - rect.left;
+	result.cy = rect.bottom - rect.top;
+	return result;
 }
 
-bool PutSpriteOnWindow(HDC wndDC, HDC spriteDC, COORD coordinates)
+SIZE GetBitmapSize(HBITMAP hBitmap)
 {
-	SIZE bitmapSize = GetDeviceContextDimensions(spriteDC);
-	return BitBlt(wndDC, coordinates.X, coordinates.Y, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY);
+	BITMAP bitmap;
+	GetObject(hBitmap, sizeof(BITMAP), &bitmap);
+	SIZE result;
+	result.cx = bitmap.bmWidth;
+	result.cy = bitmap.bmHeight;
+	return result;
 }
 
-bool LoadSprite(HWND hWnd, HDC &spriteDC, COORD &spritePosition)
+int FillWindowWithColor(HWND hWnd, HBRUSH hBrush)
+{
+	RECT rect;
+	GetClientRect(hWnd, &rect);
+	HDC wndDC = GetDC(hWnd);
+	int result = FillRect(wndDC, &rect, hBrush);
+	ReleaseDC(hWnd, wndDC);
+	return result;
+}
+
+bool PutSpriteOnWindow(HWND hWnd, HBITMAP sprite, COORD coordinates)
+{
+	HDC wndDC = GetDC(hWnd);
+	HDC spriteDC = CreateCompatibleDC(wndDC);
+	HGDIOBJ oldObject = SelectObject(spriteDC, sprite);
+	SIZE bitmapSize = GetBitmapSize(sprite);
+	bool result = BitBlt(wndDC, coordinates.X, coordinates.Y, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY);
+	SelectObject(spriteDC, oldObject);
+	DeleteDC(spriteDC);
+	ReleaseDC(hWnd, wndDC);
+	return result;
+}
+
+bool LoadSprite(HWND hWnd, HBITMAP &sprite)
 {
 	char fileName[MAX_PATH] = { NULL };
 
@@ -63,21 +78,13 @@ bool LoadSprite(HWND hWnd, HDC &spriteDC, COORD &spritePosition)
 
 	if (GetOpenFileName(&openFileName))
 	{
-		HANDLE sprite = LoadImage(NULL, fileName, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_LOADTRANSPARENT);
-		if (sprite == NULL)
+		HANDLE handle = LoadImage(NULL, fileName, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_LOADTRANSPARENT);
+		if (handle == NULL)
 		{
-			MessageBox(hWnd, "Error while loading image", "Error", MB_OK | MB_ICONERROR);
 			return false;
 		}
-
-		HDC wndDC = GetDC(hWnd);
-		spriteDC = CreateCompatibleDC(wndDC);
-		SelectObject(spriteDC, sprite);
-
-		FillDeviceContextWithColor(wndDC, (HBRUSH)(COLOR_WINDOW + 1));
-		spritePosition.X = 0;
-		spritePosition.Y = 0;
-		return PutSpriteOnWindow(wndDC, spriteDC, spritePosition);
+		sprite = (HBITMAP)handle;
+		return true;
 	}
 	return false;
 }
@@ -87,14 +94,14 @@ bool CanMoveSprite(int spriteDimension, int leftBound, int rightBound, int curCo
 	return (((curCoordinate + step) >= leftBound) && ((curCoordinate + step + spriteDimension) <= rightBound));
 }
 
-bool MoveSprite(HDC wndDC, HDC spriteDC, COORD &spritePosition, COORD spriteSteps)
+bool MoveSprite(HWND hWnd, HBITMAP sprite, COORD &spritePosition, COORD spriteSteps)
 {
-	if (spriteDC == NULL)
+	if (sprite == NULL)
 	{
 		return false;
 	}
-	FillDeviceContextWithColor(wndDC, (HBRUSH)(COLOR_WINDOW + 1));
-	SIZE windowSize = GetDeviceContextDimensions(wndDC), spriteSize = GetDeviceContextDimensions(spriteDC);
+	FillWindowWithColor(hWnd, (HBRUSH)(COLOR_WINDOW + 1));
+	SIZE windowSize = GetClientWindowSize(hWnd), spriteSize = GetBitmapSize(sprite);
 	if (CanMoveSprite(spriteSize.cx, 0, windowSize.cx, spritePosition.X, spriteSteps.X))
 	{
 		spritePosition.X += spriteSteps.X;
@@ -103,50 +110,59 @@ bool MoveSprite(HDC wndDC, HDC spriteDC, COORD &spritePosition, COORD spriteStep
 	{
 		spritePosition.Y += spriteSteps.Y;
 	}
-	return PutSpriteOnWindow(wndDC, spriteDC, spritePosition);
+	return PutSpriteOnWindow(hWnd, sprite, spritePosition);
 }
 
-bool MoveSpriteUp(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+bool MoveSpriteUp(HWND hWnd, HBITMAP sprite, COORD &spritePosition)
 {
 	COORD steps;
 	steps.X = 0;
 	steps.Y = -SPRITE_STEP;
-	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+	return MoveSprite(hWnd, sprite, spritePosition, steps);
 }
 
-bool MoveSpriteLeft(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+bool MoveSpriteLeft(HWND hWnd, HBITMAP sprite, COORD &spritePosition)
 {
 	COORD steps;
 	steps.X = -SPRITE_STEP;
 	steps.Y = 0;
-	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+	return MoveSprite(hWnd, sprite, spritePosition, steps);
 }
 
-bool MoveSpriteDown(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+bool MoveSpriteDown(HWND hWnd, HBITMAP sprite, COORD &spritePosition)
 {
 	COORD steps;
 	steps.X = 0;
 	steps.Y = SPRITE_STEP;
-	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+	return MoveSprite(hWnd, sprite, spritePosition, steps);
 }
 
-bool MoveSpriteRight(HDC wndDC, HDC spriteDC, COORD &spritePosition)
+bool MoveSpriteRight(HWND hWnd, HBITMAP sprite, COORD &spritePosition)
 {
 	COORD steps;
 	steps.X = SPRITE_STEP;
 	steps.Y = 0;
-	return MoveSprite(wndDC, spriteDC, spritePosition, steps);
+	return MoveSprite(hWnd, sprite, spritePosition, steps);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	static HDC spriteDC = NULL;
-	static COORD spritePosition = { 0, 0 };
+	static HBITMAP sprite = NULL;
+	static COORD spritePosition = { 0 };
 
 	switch (message)
 	{
 	case WM_LOAD_SPRITE:
-		LoadSprite(hWnd, spriteDC, spritePosition);
+		if (LoadSprite(hWnd, sprite))
+		{
+			FillWindowWithColor(hWnd, (HBRUSH)(COLOR_WINDOW + 1));
+			spritePosition = { 0 };
+			PutSpriteOnWindow(hWnd, sprite, spritePosition);
+		}
+		else
+		{
+			MessageBox(hWnd, "Error while loading image", "Error", MB_OK | MB_ICONERROR);
+		}
 		break;
 	case WM_KEYDOWN:
 		switch (wParam)
@@ -156,19 +172,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case VK_UP:
 		case VK_W:
-			MoveSpriteUp(GetDC(hWnd), spriteDC, spritePosition);
+			MoveSpriteUp(hWnd, sprite, spritePosition);
 			break;
 		case VK_LEFT:
 		case VK_A:
-			MoveSpriteLeft(GetDC(hWnd), spriteDC, spritePosition);
+			MoveSpriteLeft(hWnd, sprite, spritePosition);
 			break;
 		case VK_DOWN:
 		case VK_S:
-			MoveSpriteDown(GetDC(hWnd), spriteDC, spritePosition);
+			MoveSpriteDown(hWnd, sprite, spritePosition);
 			break;
 		case VK_RIGHT:
 		case VK_D:
-			MoveSpriteRight(GetDC(hWnd), spriteDC, spritePosition);
+			MoveSpriteRight(hWnd, sprite, spritePosition);
 			break;
 		}
 		if (wParam != VK_ESCAPE)
@@ -186,22 +202,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{
 			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
 			{
-				MoveSpriteLeft(GetDC(hWnd), spriteDC, spritePosition);
+				MoveSpriteLeft(hWnd, sprite, spritePosition);
 			}
 			else
 			{
-				MoveSpriteRight(GetDC(hWnd), spriteDC, spritePosition);
+				MoveSpriteRight(hWnd, sprite, spritePosition);
 			}
 		}
 		else
 		{
 			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
 			{
-				MoveSpriteUp(GetDC(hWnd), spriteDC, spritePosition);
+				MoveSpriteUp(hWnd, sprite, spritePosition);
 			}
 			else
 			{
-				MoveSpriteDown(GetDC(hWnd), spriteDC, spritePosition);
+				MoveSpriteDown(hWnd, sprite, spritePosition);
 			}
 		}
 		break;
