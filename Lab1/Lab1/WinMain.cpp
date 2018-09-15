@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <gdiplus.h>
 
 #define WND_CLASS_NAME "LaboratoryWork1Class"
 #define WM_LOAD_SPRITE WM_USER
@@ -8,6 +9,7 @@
 #define VK_S 0x53
 #define VK_D 0x44
 #define SPRITE_STEP 8
+#define BACKGROUND_COLOR GetSysColor(COLOR_WINDOW)
 
 bool PostLoadSpriteMessage(HWND hWnd)
 {
@@ -34,12 +36,14 @@ SIZE GetBitmapSize(HBITMAP hBitmap)
 	return result;
 }
 
-int FillWindowWithColor(HWND hWnd, HBRUSH hBrush)
+int FillWindowWithColor(HWND hWnd, COLORREF color)
 {
 	RECT rect;
 	GetClientRect(hWnd, &rect);
 	HDC wndDC = GetDC(hWnd);
+	HBRUSH hBrush = CreateSolidBrush(color);
 	int result = FillRect(wndDC, &rect, hBrush);
+	DeleteObject(hBrush);
 	ReleaseDC(hWnd, wndDC);
 	return result;
 }
@@ -65,7 +69,7 @@ bool LoadSprite(HWND hWnd, HBITMAP &sprite)
 	openFileName.lStructSize = sizeof(OPENFILENAME);
 	openFileName.hwndOwner = hWnd;
 	openFileName.hInstance = NULL;
-	openFileName.lpstrFilter = "Bitmap images\0*.bmp\0\0";
+	openFileName.lpstrFilter = "Bitmap images\0*.bmp;*.gif;*.jpeg;*.png;*.tiff;*.exif;*.wmf;*.emf\0\0";
 	openFileName.lpstrCustomFilter = NULL;
 	openFileName.nFilterIndex = 1;
 	openFileName.lpstrFile = fileName;
@@ -78,12 +82,25 @@ bool LoadSprite(HWND hWnd, HBITMAP &sprite)
 
 	if (GetOpenFileName(&openFileName))
 	{
-		HANDLE handle = LoadImage(NULL, fileName, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_LOADTRANSPARENT);
-		if (handle == NULL)
+		int fileNameLength = MultiByteToWideChar(CP_ACP, 0, fileName, -1, NULL, 0);
+		WCHAR *wideCharFileName = new WCHAR[MultiByteToWideChar(CP_ACP, 0, fileName, -1, NULL, 0)];
+		MultiByteToWideChar(CP_ACP, 0, fileName, -1, wideCharFileName, fileNameLength);
+
+		Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+		ULONG_PTR gdiplusToken;
+		GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+		Gdiplus::Bitmap *sourceImage = Gdiplus::Bitmap::FromFile(wideCharFileName);
+		HBITMAP hBitmap;
+		Gdiplus::Status bitmapStatus = sourceImage->GetHBITMAP(BACKGROUND_COLOR, &hBitmap);
+
+		Gdiplus::GdiplusShutdown(gdiplusToken);
+
+		if (bitmapStatus != Gdiplus::Ok)
 		{
 			return false;
 		}
-		sprite = (HBITMAP)handle;
+		sprite = hBitmap;
 		return true;
 	}
 	return false;
@@ -100,7 +117,7 @@ bool MoveSprite(HWND hWnd, HBITMAP sprite, COORD &spritePosition, COORD spriteSt
 	{
 		return false;
 	}
-	FillWindowWithColor(hWnd, (HBRUSH)(COLOR_WINDOW + 1));
+	FillWindowWithColor(hWnd, BACKGROUND_COLOR);
 	SIZE windowSize = GetClientWindowSize(hWnd), spriteSize = GetBitmapSize(sprite);
 	if (CanMoveSprite(spriteSize.cx, 0, windowSize.cx, spritePosition.X, spriteSteps.X))
 	{
@@ -155,7 +172,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_LOAD_SPRITE:
 		if (LoadSprite(hWnd, sprite))
 		{
-			FillWindowWithColor(hWnd, (HBRUSH)(COLOR_WINDOW + 1));
+			FillWindowWithColor(hWnd, BACKGROUND_COLOR);
 			spritePosition = { 0 };
 			PutSpriteOnWindow(hWnd, sprite, spritePosition);
 		}
@@ -238,7 +255,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	wndClassEx.hInstance = hInstance;
 	wndClassEx.hIcon = NULL;
 	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndClassEx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wndClassEx.hbrBackground = CreateSolidBrush(BACKGROUND_COLOR);
 	wndClassEx.lpszMenuName = NULL;
 	wndClassEx.lpszClassName = WND_CLASS_NAME;
 	wndClassEx.hIconSm = NULL;
