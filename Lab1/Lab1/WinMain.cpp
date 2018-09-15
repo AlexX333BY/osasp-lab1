@@ -69,7 +69,7 @@ bool LoadSprite(HWND hWnd, HBITMAP &sprite)
 	openFileName.lStructSize = sizeof(OPENFILENAME);
 	openFileName.hwndOwner = hWnd;
 	openFileName.hInstance = NULL;
-	openFileName.lpstrFilter = "Bitmap images\0*.bmp;*.gif;*.jpeg;*.png;*.tiff;*.exif;*.wmf;*.emf\0\0";
+	openFileName.lpstrFilter = "Images\0*.bmp;*.gif;*.jpeg;*.png;*.tiff;*.exif;*.wmf;*.emf\0\0";
 	openFileName.lpstrCustomFilter = NULL;
 	openFileName.nFilterIndex = 1;
 	openFileName.lpstrFile = fileName;
@@ -78,7 +78,7 @@ bool LoadSprite(HWND hWnd, HBITMAP &sprite)
 	openFileName.lpstrInitialDir = NULL;
 	openFileName.lpstrTitle = "Select sprite image";
 	openFileName.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-	openFileName.lpstrDefExt = ".bmp";
+	openFileName.lpstrDefExt = NULL;
 
 	if (GetOpenFileName(&openFileName))
 	{
