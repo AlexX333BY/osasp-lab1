@@ -34,7 +34,8 @@ typedef enum LoadResult
 {
 	NoError = 0,
 	CancelledByUser = 1,
-	Error = -1
+	UnknownError = -1,
+	TooBigSizeError = -2
 } _LoadResult;
 
 bool PostLoadSpriteMessage(HWND hWnd)
@@ -195,8 +196,15 @@ LoadResult LoadSprite(HWND hWnd, HBITMAP &sprite)
 
 		if (bitmapStatus != Gdiplus::Ok)
 		{
-			return Error;
+			return UnknownError;
 		}
+
+		SIZE windowSize = GetClientWindowSize(hWnd), spriteSize = GetBitmapSize(hBitmap);
+		if ((windowSize.cx < spriteSize.cx) || (windowSize.cy < spriteSize.cy))
+		{
+			return TooBigSizeError;
+		}
+
 		sprite = hBitmap;
 		return NoError;
 	}
@@ -286,7 +294,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			invertion = GetUninvertedStruct();
 			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
 			break;
-		case Error:
+		case TooBigSizeError:
+			MessageBox(hWnd, "Image size is too big to fit in windows", "Too big", MB_OK | MB_ICONERROR);
+			break;
+		case UnknownError:
 			MessageBox(hWnd, "Error while loading image", "Error", MB_OK | MB_ICONERROR);
 			break;
 		}
