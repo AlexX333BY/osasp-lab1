@@ -28,11 +28,23 @@ typedef struct InvertionStruct
 {
 	bool isHorizontallyInverted;
 	bool isVerticallyInverted;
-};
+} _InvertionStruct;
+
+typedef enum LoadResult
+{
+	NoError = 0,
+	CancelledByUser = 1,
+	Error = -1
+} _LoadResult;
 
 bool PostLoadSpriteMessage(HWND hWnd)
 {
 	return PostMessage(hWnd, WM_LOAD_SPRITE, NULL, NULL);
+}
+
+bool PostUpdateSpriteMessage(HWND hWnd)
+{
+	return PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
 }
 
 SIZE GetClientWindowSize(HWND hWnd)
@@ -119,32 +131,24 @@ bool PutSpriteOnWindow(HWND hWnd, HBITMAP sprite, COORD coordinates, short angle
 	xForm = GetMovementXform(coordinates);
 	SetWorldTransform(wndDC, &xForm);
 
-	COORD test;
-	test.X = - (coordinates.X + bitmapSize.cx / 2);
-	test.Y = - (coordinates.Y + bitmapSize.cy / 2);
-	xForm = GetMovementXform(test);
+	COORD transformationCenter;
+	transformationCenter.X = - (coordinates.X + bitmapSize.cx / 2);
+	transformationCenter.Y = - (coordinates.Y + bitmapSize.cy / 2);
+	xForm = GetMovementXform(transformationCenter);
 	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
+
 	xForm = GetRotationXform(angle);
 	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
+
 	xForm = GetInvertionXform(invertionStruct);
 	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
-	test.X = -test.X;
-	test.Y = -test.Y;
-	xForm = GetMovementXform(test);
+
+	transformationCenter.X = -transformationCenter.X;
+	transformationCenter.Y = -transformationCenter.Y;
+	xForm = GetMovementXform(transformationCenter);
 	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
 
-	/*test.X = -(coordinates.X + bitmapSize.cx / 2);
-	test.Y = -(coordinates.Y + bitmapSize.cy / 2);
-	xForm = GetMovementXform(test);
-	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
-	xForm = GetInvertionXform();
-	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
-	test.X = -test.X;
-	test.Y = -test.Y;
-	xForm = GetMovementXform(test);
-	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);*/
-
-	bool result = BitBlt(wndDC, 0, 0, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY | NOMIRRORBITMAP);
+	bool result = BitBlt(wndDC, 0, 0, bitmapSize.cx, bitmapSize.cy, spriteDC, 0, 0, SRCCOPY);
 	ModifyWorldTransform(wndDC, NULL, MWT_IDENTITY);
 	SetGraphicsMode(wndDC, prevGraphicsMode);
 
@@ -154,7 +158,7 @@ bool PutSpriteOnWindow(HWND hWnd, HBITMAP sprite, COORD coordinates, short angle
 	return result;
 }
 
-bool LoadSprite(HWND hWnd, HBITMAP &sprite)
+LoadResult LoadSprite(HWND hWnd, HBITMAP &sprite)
 {
 	char fileName[MAX_PATH] = { NULL };
 
@@ -191,68 +195,69 @@ bool LoadSprite(HWND hWnd, HBITMAP &sprite)
 
 		if (bitmapStatus != Gdiplus::Ok)
 		{
-			return false;
+			return Error;
 		}
 		sprite = hBitmap;
-		return true;
+		return NoError;
 	}
-	return false;
+	return CancelledByUser;
 }
 
-bool CanMoveSprite(int spriteDimension, int leftBound, int rightBound, int curCoordinate, int step)
+COORD CreateNewSpritePosition(COORD spritePosition, COORD spriteSteps, HWND hWnd, HBITMAP sprite)
 {
-	return (((curCoordinate + step) >= leftBound) && ((curCoordinate + step + spriteDimension) <= rightBound));
-}
-
-bool MoveSprite(HWND hWnd, HBITMAP sprite, COORD &spritePosition, COORD spriteSteps, short angle, InvertionStruct invertionStruct)
-{
-	if (sprite == NULL)
-	{
-		return false;
-	}
-	FillWindowWithColor(hWnd, BACKGROUND_COLOR);
 	SIZE windowSize = GetClientWindowSize(hWnd), spriteSize = GetBitmapSize(sprite);
-	if (CanMoveSprite(spriteSize.cx, 0, windowSize.cx, spritePosition.X, spriteSteps.X))
+	COORD newSpritePosition;
+	newSpritePosition.X = spritePosition.X + spriteSteps.X;
+	if (newSpritePosition.X < 0)
 	{
-		spritePosition.X += spriteSteps.X;
+		newSpritePosition.X = 0;
 	}
-	if (CanMoveSprite(spriteSize.cy, 0, windowSize.cy, spritePosition.Y, spriteSteps.Y))
+	else if (newSpritePosition.X + spriteSize.cx > windowSize.cx)
 	{
-		spritePosition.Y += spriteSteps.Y;
+		newSpritePosition.X = windowSize.cx - spriteSize.cx;
 	}
-	return PutSpriteOnWindow(hWnd, sprite, spritePosition, angle, invertionStruct);
+	newSpritePosition.Y = spritePosition.Y + spriteSteps.Y;
+	if (newSpritePosition.Y < 0)
+	{
+		newSpritePosition.Y = 0;
+	}
+	else if (newSpritePosition.Y + spriteSize.cy > windowSize.cy)
+	{
+		newSpritePosition.Y = windowSize.cy - spriteSize.cy;
+	}
+	return newSpritePosition;
 }
 
-bool MoveSpriteUp(HWND hWnd, HBITMAP sprite, COORD &spritePosition, short angle, InvertionStruct invertionStruct)
+COORD CreateUpSteps()
 {
 	COORD steps;
 	steps.X = 0;
 	steps.Y = -SPRITE_STEP;
-	return MoveSprite(hWnd, sprite, spritePosition, steps, angle, invertionStruct);
+	return steps;
 }
 
-bool MoveSpriteLeft(HWND hWnd, HBITMAP sprite, COORD &spritePosition, short angle, InvertionStruct invertionStruct)
+COORD CreateLeftSteps()
 {
 	COORD steps;
 	steps.X = -SPRITE_STEP;
 	steps.Y = 0;
-	return MoveSprite(hWnd, sprite, spritePosition, steps, angle, invertionStruct);
+	return steps;
 }
 
-bool MoveSpriteDown(HWND hWnd, HBITMAP sprite, COORD &spritePosition, short angle, InvertionStruct invertionStruct)
+COORD CreateDownSteps()
 {
 	COORD steps;
 	steps.X = 0;
 	steps.Y = SPRITE_STEP;
-	return MoveSprite(hWnd, sprite, spritePosition, steps, angle, invertionStruct);
+	return steps;
 }
 
-bool MoveSpriteRight(HWND hWnd, HBITMAP sprite, COORD &spritePosition, short angle, InvertionStruct invertionStruct)
+COORD CreateRightSteps()
 {
 	COORD steps;
 	steps.X = SPRITE_STEP;
 	steps.Y = 0;
-	return MoveSprite(hWnd, sprite, spritePosition, steps, angle, invertionStruct);
+	return steps;
 }
 
 InvertionStruct GetUninvertedStruct()
@@ -273,16 +278,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_LOAD_SPRITE:
-		if (LoadSprite(hWnd, sprite))
+		switch (LoadSprite(hWnd, sprite))
 		{
+		case NoError:
 			spritePosition = { 0 };
 			angle = 0;
 			invertion = GetUninvertedStruct();
 			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
-		}
-		else
-		{
+			break;
+		case Error:
 			MessageBox(hWnd, "Error while loading image", "Error", MB_OK | MB_ICONERROR);
+			break;
 		}
 		break;
 	case WM_UPDATE_SPRITE:
@@ -297,35 +303,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case VK_UP:
 		case VK_W:
-			MoveSpriteUp(hWnd, sprite, spritePosition, angle, invertion);
+			spritePosition = CreateNewSpritePosition(spritePosition, CreateUpSteps(), hWnd, sprite);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_LEFT:
 		case VK_A:
-			MoveSpriteLeft(hWnd, sprite, spritePosition, angle, invertion);
+			spritePosition = CreateNewSpritePosition(spritePosition, CreateLeftSteps(), hWnd, sprite);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_DOWN:
 		case VK_S:
-			MoveSpriteDown(hWnd, sprite, spritePosition, angle, invertion);
+			spritePosition = CreateNewSpritePosition(spritePosition, CreateDownSteps(), hWnd, sprite);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_RIGHT:
 		case VK_D:
-			MoveSpriteRight(hWnd, sprite, spritePosition, angle, invertion);
+			spritePosition = CreateNewSpritePosition(spritePosition, CreateRightSteps(), hWnd, sprite);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_Q:
-			angle += SPRITE_DEGREE_ROTATE_STEP;
-			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
+			angle -= SPRITE_DEGREE_ROTATE_STEP;
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_E:
-			angle -= SPRITE_DEGREE_ROTATE_STEP;
-			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
+			angle += SPRITE_DEGREE_ROTATE_STEP;
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_H:
 			invertion.isHorizontallyInverted = !invertion.isHorizontallyInverted;
-			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case VK_V:
 			invertion.isVerticallyInverted = !invertion.isVerticallyInverted;
-			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		}
 		if (wParam != VK_ESCAPE)
@@ -343,22 +353,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{
 			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
 			{
-				MoveSpriteLeft(hWnd, sprite, spritePosition, angle, invertion);
+				spritePosition = CreateNewSpritePosition(spritePosition, CreateLeftSteps(), hWnd, sprite);
+				PostUpdateSpriteMessage(hWnd);
 			}
 			else
 			{
-				MoveSpriteRight(hWnd, sprite, spritePosition, angle, invertion);
+				spritePosition = CreateNewSpritePosition(spritePosition, CreateRightSteps(), hWnd, sprite);
+				PostUpdateSpriteMessage(hWnd);
 			}
 		}
 		else
 		{
 			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
 			{
-				MoveSpriteUp(hWnd, sprite, spritePosition, angle, invertion);
+				spritePosition = CreateNewSpritePosition(spritePosition, CreateUpSteps(), hWnd, sprite);
+				PostUpdateSpriteMessage(hWnd);
 			}
 			else
 			{
-				MoveSpriteDown(hWnd, sprite, spritePosition, angle, invertion);
+				spritePosition = CreateNewSpritePosition(spritePosition, CreateDownSteps(), hWnd, sprite);
+				PostUpdateSpriteMessage(hWnd);
 			}
 		}
 		break;
