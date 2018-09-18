@@ -387,6 +387,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 		}
 		break;
+	case WM_SIZE:
+		PostUpdateSpriteMessage(hWnd);
+		return DefWindowProc(hWnd, message, wParam, lParam);
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
