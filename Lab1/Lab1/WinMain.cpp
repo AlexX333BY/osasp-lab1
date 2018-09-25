@@ -24,8 +24,6 @@
 #define SPRITE_STEP 16
 #define SPRITE_DEGREE_ROTATE_STEP 15
 
-#define BACKGROUND_COLOR GetSysColor(COLOR_WINDOW)
-
 typedef struct InvertionStruct
 {
 	bool isHorizontallyInverted;
@@ -53,6 +51,11 @@ bool PostUpdateSpriteMessage(HWND hWnd)
 bool PostLoadDefaultSpriteMessage(HWND hWnd, HINSTANCE hInstance)
 {
 	return PostMessage(hWnd, WM_LOAD_DEFAULT_SPRITE, NULL, (LPARAM) hInstance);
+}
+
+DWORD GetBackgroundColor()
+{
+	return GetSysColor(COLOR_WINDOW);
 }
 
 SIZE GetClientWindowSize(HWND hWnd)
@@ -198,7 +201,7 @@ LoadResult LoadSprite(HWND hWnd, HBITMAP &sprite)
 		Gdiplus::Bitmap *sourceImage = Gdiplus::Bitmap::FromFile(wideCharFileName);
 		HBITMAP hBitmap;
 		Gdiplus::Color imageBackgroundColor;
-		imageBackgroundColor.SetFromCOLORREF(BACKGROUND_COLOR);
+		imageBackgroundColor.SetFromCOLORREF(GetBackgroundColor());
 		Gdiplus::Status bitmapStatus = sourceImage->GetHBITMAP(imageBackgroundColor, &hBitmap);
 
 		Gdiplus::GdiplusShutdown(gdiplusToken);
@@ -307,7 +310,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			spritePosition = { 0 };
 			angle = 0;
 			invertion = GetUninvertedStruct();
-			PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
+			PostUpdateSpriteMessage(hWnd);
 			break;
 		case TooBigSizeError:
 			MessageBox(hWnd, "Image size is too big to fit in windows", "Too big", MB_OK | MB_ICONERROR);
@@ -318,7 +321,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_UPDATE_SPRITE:
-		FillWindowWithColor(hWnd, BACKGROUND_COLOR);
+		FillWindowWithColor(hWnd, GetBackgroundColor());
 		PutSpriteOnWindow(hWnd, sprite, spritePosition, angle, invertion);
 		break;
 	case WM_KEYDOWN:
@@ -422,13 +425,13 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	wndClassEx.hInstance = hInstance;
 	wndClassEx.hIcon = NULL;
 	wndClassEx.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wndClassEx.hbrBackground = CreateSolidBrush(BACKGROUND_COLOR);
+	wndClassEx.hbrBackground = CreateSolidBrush(GetBackgroundColor());
 	wndClassEx.lpszMenuName = NULL;
 	wndClassEx.lpszClassName = WND_CLASS_NAME;
 	wndClassEx.hIconSm = NULL;
 	RegisterClassEx(&wndClassEx);
 
-	HWND hWnd = CreateWindow(WND_CLASS_NAME, "Lab 1", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
+	HWND hWnd = CreateWindow(WND_CLASS_NAME, "Task #1", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
