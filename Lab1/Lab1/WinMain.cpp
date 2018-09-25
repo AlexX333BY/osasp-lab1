@@ -22,7 +22,7 @@
 #define SPRITE_STEP 16
 #define SPRITE_DEGREE_ROTATE_STEP 15
 
-#define BACKGROUND_COLOR GetSysColor(COLOR_WINDOW)
+#define BACKGROUND_COLOR RGB(0xFF, 0, 0)//GetSysColor(COLOR_WINDOW)
 
 typedef struct InvertionStruct
 {
@@ -190,7 +190,9 @@ LoadResult LoadSprite(HWND hWnd, HBITMAP &sprite)
 
 		Gdiplus::Bitmap *sourceImage = Gdiplus::Bitmap::FromFile(wideCharFileName);
 		HBITMAP hBitmap;
-		Gdiplus::Status bitmapStatus = sourceImage->GetHBITMAP(BACKGROUND_COLOR, &hBitmap);
+		Gdiplus::Color imageBackgroundColor;
+		imageBackgroundColor.SetFromCOLORREF(BACKGROUND_COLOR);
+		Gdiplus::Status bitmapStatus = sourceImage->GetHBITMAP(imageBackgroundColor, &hBitmap);
 
 		Gdiplus::GdiplusShutdown(gdiplusToken);
 
