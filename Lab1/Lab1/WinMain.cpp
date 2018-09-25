@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <gdiplus.h>
+#include "resource.h"
 
 #define _USE_MATH_DEFINES 
 #include <cmath>  
@@ -8,6 +9,7 @@
 
 #define WM_LOAD_SPRITE WM_USER
 #define WM_UPDATE_SPRITE (WM_USER+1)
+#define WM_LOAD_DEFAULT_SPRITE (WM_USER+2)
 
 #define VK_L 0x4c
 #define VK_W 0x57
@@ -46,6 +48,11 @@ bool PostLoadSpriteMessage(HWND hWnd)
 bool PostUpdateSpriteMessage(HWND hWnd)
 {
 	return PostMessage(hWnd, WM_UPDATE_SPRITE, NULL, NULL);
+}
+
+bool PostLoadDefaultSpriteMessage(HWND hWnd, HINSTANCE hInstance)
+{
+	return PostMessage(hWnd, WM_LOAD_DEFAULT_SPRITE, NULL, (LPARAM) hInstance);
 }
 
 SIZE GetClientWindowSize(HWND hWnd)
@@ -287,6 +294,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	switch (message)
 	{
+	case WM_LOAD_DEFAULT_SPRITE:
+		if ((sprite = LoadBitmap((HINSTANCE)lParam, MAKEINTRESOURCE(IDB_DEFAULT_SPRITE))) != NULL)
+		{
+			PostUpdateSpriteMessage(hWnd);
+		}
+		break;
 	case WM_LOAD_SPRITE:
 		switch (LoadSprite(hWnd, sprite))
 		{
@@ -420,7 +433,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	UpdateWindow(hWnd);
 
 	MSG msg;
-	PostLoadSpriteMessage(hWnd);
+	PostLoadDefaultSpriteMessage(hWnd, hInstance);
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
 		TranslateMessage(&msg);
