@@ -22,7 +22,7 @@
 #define SPRITE_STEP 16
 #define SPRITE_DEGREE_ROTATE_STEP 15
 
-#define BACKGROUND_COLOR RGB(0xFF, 0, 0)//GetSysColor(COLOR_WINDOW)
+#define BACKGROUND_COLOR GetSysColor(COLOR_WINDOW)
 
 typedef struct InvertionStruct
 {
