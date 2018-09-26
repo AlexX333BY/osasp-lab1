@@ -108,10 +108,10 @@ XFORM GetRotationXform(short degreeAngle)
 XFORM GetInvertionXform(InvertionStruct invertionStruct)
 {
 	XFORM xForm;
-	xForm.eM11 = (invertionStruct.isVerticallyInverted ? -1 : 1);
+	xForm.eM11 = (FLOAT)(invertionStruct.isVerticallyInverted ? -1 : 1);
 	xForm.eM12 = 0;
 	xForm.eM21 = 0;
-	xForm.eM22 = (invertionStruct.isHorizontallyInverted ? -1 : 1);
+	xForm.eM22 = (FLOAT)(invertionStruct.isHorizontallyInverted ? -1 : 1);
 	xForm.eDx = 0;
 	xForm.eDy = 0;
 	return xForm;
@@ -143,8 +143,8 @@ bool PutSpriteOnWindow(HWND hWnd, HBITMAP sprite, COORD coordinates, short angle
 	SetWorldTransform(wndDC, &xForm);
 
 	COORD transformationCenter;
-	transformationCenter.X = - (coordinates.X + bitmapSize.cx / 2);
-	transformationCenter.Y = - (coordinates.Y + bitmapSize.cy / 2);
+	transformationCenter.X = (SHORT)(- (coordinates.X + bitmapSize.cx / 2));
+	transformationCenter.Y = (SHORT)(- (coordinates.Y + bitmapSize.cy / 2));
 	xForm = GetMovementXform(transformationCenter);
 	ModifyWorldTransform(wndDC, &xForm, MWT_RIGHTMULTIPLY);
 
@@ -235,7 +235,7 @@ COORD CreateNewSpritePosition(COORD spritePosition, COORD spriteSteps, HWND hWnd
 	}
 	else if (newSpritePosition.X + spriteSize.cx > windowSize.cx)
 	{
-		newSpritePosition.X = windowSize.cx - spriteSize.cx;
+		newSpritePosition.X = (SHORT)(windowSize.cx - spriteSize.cx);
 	}
 	newSpritePosition.Y = spritePosition.Y + spriteSteps.Y;
 	if (newSpritePosition.Y < 0)
@@ -244,7 +244,7 @@ COORD CreateNewSpritePosition(COORD spritePosition, COORD spriteSteps, HWND hWnd
 	}
 	else if (newSpritePosition.Y + spriteSize.cy > windowSize.cy)
 	{
-		newSpritePosition.Y = windowSize.cy - spriteSize.cy;
+		newSpritePosition.Y = (SHORT)(windowSize.cy - spriteSize.cy);
 	}
 	return newSpritePosition;
 }
