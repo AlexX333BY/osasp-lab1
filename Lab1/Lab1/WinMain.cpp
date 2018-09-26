@@ -205,6 +205,7 @@ LoadResult LoadSprite(HWND hWnd, HBITMAP &sprite)
 		Gdiplus::Status bitmapStatus = sourceImage->GetHBITMAP(imageBackgroundColor, &hBitmap);
 
 		Gdiplus::GdiplusShutdown(gdiplusToken);
+		delete wideCharFileName;
 
 		if (bitmapStatus != Gdiplus::Ok)
 		{
